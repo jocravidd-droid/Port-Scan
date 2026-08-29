@@ -8,12 +8,11 @@ class Scanner:
 
     def scan(self):
         for port in self.port_range:
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.settimeout(1)
-            result = sock.connect_ex((self.target, port))
-            sock.close()
-            if result == 0:
-                self.results.append(port)
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+                sock.settimeout(1)
+                result = sock.connect_ex((self.target, port))
+                if result == 0:
+                    self.results.append(port)
         return self.results
 
 mon_scan = Scanner(input("IP OR DOMAINE: "), range(1, 100))
