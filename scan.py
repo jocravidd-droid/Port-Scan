@@ -1,6 +1,7 @@
 import asyncio
 
-print(r"""╭───────────────────────────────────────────────╮
+print(r"""
+╭───────────────────────────────────────────────╮
 │    ___  ___  ___ _____ ___  ___   _   _  _    │
 │   | _ \/ _ \| _ \_   _/ __|/ __| /_\ | \| |   │
 │   |  _/ (_) |   / | | \__ \ (__ / _ \| .` |   │
@@ -50,8 +51,7 @@ try:
         sc = Scanner(target, range(start_port, end_port + 1), timeout_value, semaphore)
         info = asyncio.run(sc.scan())
         print(f'\nPort Found for {target}: {info}')
-        
 except ValueError:
     print('\nEnter an integer')
-except EOFError:
+except (EOFError, KeyboardInterrupt):
     print('\nInterruption Forcé')
