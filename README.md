@@ -1,6 +1,17 @@
 # Port Scanner Python
 
-Scanner de ports écrit en Python, en asynchrone avec `asyncio`.
+Scanner de ports TCP écrit en Python, en asynchrone avec `asyncio`.
+
+```
+╭───────────────────────────────────────────────╮
+│    ___  ___  ___ _____ ___  ___   _   _  _    │
+│   | _ \/ _ \| _ \_   _/ __|/ __| /_\ | \| |   │
+│   |  _/ (_) |   / | | \__ \ (__ / _ \| .` |   │
+│   |_|  \___/|_|_\ |_| |___/\___/_/ \_\_|\_|   │
+│                                               │
+│   asynchronous tcp scanner  //  python 3      │
+╰───────────────────────────────────────────────╯
+```
 
 ## Ce que ça fait
 
@@ -20,11 +31,15 @@ Le timeout et le sémaphore sont passés en paramètres jusqu'à `scan_port`, pl
 
 ## Gestion des erreurs
 
-Les saisies sont protégées sur trois plans :
+Les saisies sont protégées sur plusieurs plans :
 
 - `ValueError` pour une valeur non numérique là où un nombre est attendu
 - `EOFError` pour une interruption par Ctrl+D
-- une vérification que le port de départ n'est pas supérieur au port de fin, avec un message explicite plutôt qu'un scan vide et silencieux
+- port de départ supérieur au port de fin
+- port de départ inférieur à 1
+- port de fin supérieur à 65535
+
+Chaque cas affiche un message explicite, plutôt qu'un scan vide et silencieux.
 
 ## Utilisation
 
@@ -37,7 +52,7 @@ Exemple sur `8.8.8.8` (DNS de Google) :
 ```
 Target: 8.8.8.8
 Start_port: 1
-End_port: 1000
+End_port (limit 65535): 1000
 Timeout: 1
 Max Connections: 500
 
@@ -48,14 +63,27 @@ Les trois ports correspondent au DNS classique (53), au DNS-over-HTTPS (443) et 
 
 ## Historique
 
-La première version utilisait le module `socket` en mode bloquant, avec une plage de ports figée dans le code. Elle a ensuite été réécrite en asynchrone, puis complétée par une limite de connexions simultanées, une fermeture propre des connexions, le passage de tous les paramètres en saisie utilisateur, la suppression des dépendances globales, une plage de ports configurable et la validation des saisies.
+La première version utilisait le module `socket` en mode bloquant, avec une plage de ports figée dans le code. Elle a ensuite été réécrite en asynchrone, puis complétée par une limite de connexions simultanées, une fermeture propre des connexions, le passage de tous les paramètres en saisie utilisateur, la suppression des dépendances globales, une plage de ports configurable, la validation des saisies et une bannière au lancement.
 
 ## Pourquoi ce projet
 
 Premier projet où j'ai structuré du code avec une classe plutôt que de suivre un exercice guidé. Il m'a servi à comprendre concrètement `self`, l'intérêt d'un timeout en réseau, les context managers, puis le passage de code bloquant à du code concurrent avec `asyncio`.
 
-## À améliorer
+## Ce qui est prévu
 
-- Pas de détection du service derrière un port ouvert
-- Pas d'affichage de la progression pendant un scan long
-- Pas de vérification que les numéros de ports saisis sont dans la plage valide (1 à 65535)
+Ce projet n'est pas figé, je compte continuer à le faire évoluer, aussi bien sur le fond que sur la forme.
+
+Côté style et présentation :
+
+- personnalisation de la bannière et de l'affichage général
+- sortie colorée pour distinguer les ports ouverts, les erreurs et les informations
+- affichage de la progression pendant un scan long
+- résultats présentés sous forme de tableau plutôt qu'une simple liste
+
+Côté fonctionnalités :
+
+- détection du service derrière un port ouvert
+- possibilité de passer les paramètres en arguments de ligne de commande, en plus des saisies interactives
+- export des résultats dans un fichier
+- scan de plusieurs cibles à la suite
+- mesure et affichage de la durée du scan
