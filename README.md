@@ -4,35 +4,51 @@ Scanner de ports écrit en Python, en asynchrone avec `asyncio`.
 
 ## Ce que ça fait
 
-Le script demande une adresse IP ou un nom de domaine, ainsi qu'un numéro de port maximum, puis teste tous les ports de 1 jusqu'à cette valeur pour voir lesquels sont ouverts.
+Le script teste une plage de ports sur une cible donnée et affiche ceux qui sont ouverts. Tous les paramètres sont demandés à l'utilisateur au lancement, plutôt que figés dans le code : la cible, le port de départ, le port de fin, le timeout et le nombre maximum de connexions simultanées. L'idée est de laisser le plus de contrôle possible à celui qui l'utilise, sans avoir à modifier le fichier.
 
 ## Comment ça marche
 
-Chaque port est testé par une coroutine `scan_port`, qui tente d'ouvrir une connexion avec `asyncio.open_connection` et applique un timeout d'1 seconde via `asyncio.wait_for`. Si la connexion aboutit, le numéro du port est renvoyé ; sinon (timeout, connexion refusée, ou autre erreur réseau) la coroutine renvoie `None`.
+Chaque port est testé par une coroutine `scan_port`, qui tente d'ouvrir une connexion avec `asyncio.open_connection` et applique le timeout choisi via `asyncio.wait_for`. Si la connexion aboutit, le numéro du port est renvoyé ; sinon (timeout, connexion refusée, ou autre erreur réseau) la coroutine renvoie `None`.
 
 La méthode `scan` construit une coroutine par port, puis les lance toutes ensemble avec `asyncio.gather`. Les ports fermés sont ensuite filtrés du résultat.
 
 C'est ce fonctionnement concurrent qui fait la différence : pendant qu'une connexion attend sa réponse, les autres avancent. Scanner plusieurs milliers de ports prend quelques secondes, là où une version bloquante, port après port, prendrait plus d'une heure.
 
+Un `asyncio.Semaphore` limite le nombre de connexions ouvertes en même temps. Sans cette limite, une grande plage de ports ouvrirait des milliers de connexions d'un coup et dépasserait le nombre de descripteurs de fichiers autorisés par le système. La valeur est laissée au choix de l'utilisateur, pour qu'il puisse l'adapter à sa machine et à sa connexion.
+
+Le timeout et le sémaphore sont passés en paramètres jusqu'à `scan_port`, plutôt que lus dans l'espace global. La fonction est ainsi autonome et réutilisable telle quelle dans un autre script.
+
+## Gestion des erreurs
+
+Les saisies sont protégées sur trois plans :
+
+- `ValueError` pour une valeur non numérique là où un nombre est attendu
+- `EOFError` pour une interruption par Ctrl+D
+- une vérification que le port de départ n'est pas supérieur au port de fin, avec un message explicite plutôt qu'un scan vide et silencieux
+
 ## Utilisation
 
 ```
-python Scanner.py
+python scanner.py
 ```
 
-Exemple sur `8.8.8.8` (DNS de Google), avec 6589 ports testés :
+Exemple sur `8.8.8.8` (DNS de Google) :
 
 ```
 Target: 8.8.8.8
-MAX PORT: 6589
-[53, 443, 853]
+Start_port: 1
+End_port: 1000
+Timeout: 1
+Max Connections: 500
+
+Port Found for 8.8.8.8: [53, 443, 853]
 ```
 
 Les trois ports correspondent au DNS classique (53), au DNS-over-HTTPS (443) et au DNS-over-TLS (853).
 
 ## Historique
 
-La première version utilisait le module `socket` en mode bloquant, avec une plage de ports figée dans le code. Elle a ensuite été réécrite en asynchrone, ce qui a permis de passer de quelques dizaines de ports à plusieurs milliers dans un temps raisonnable.
+La première version utilisait le module `socket` en mode bloquant, avec une plage de ports figée dans le code. Elle a ensuite été réécrite en asynchrone, puis complétée par une limite de connexions simultanées, une fermeture propre des connexions, le passage de tous les paramètres en saisie utilisateur, la suppression des dépendances globales, une plage de ports configurable et la validation des saisies.
 
 ## Pourquoi ce projet
 
@@ -41,5 +57,5 @@ Premier projet où j'ai structuré du code avec une classe plutôt que de suivre
 ## À améliorer
 
 - Pas de détection du service derrière un port ouvert
-- Pas de limite sur le nombre de connexions simultanées, ce qui peut poser problème sur de très grandes plages
-- La fermeture des connexions ne fait pas encore de `await writer.wait_closed()`
+- Pas d'affichage de la progression pendant un scan long
+- Pas de vérification que les numéros de ports saisis sont dans la plage valide (1 à 65535)
