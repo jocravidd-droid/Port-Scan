@@ -6,12 +6,13 @@ Document de référence sur le fonctionnement interne du scanner.
 
 Le fichier suit cet ordre :
 
-1. Imports (`asyncio`, `pathlib.Path`, `logging`)
+1. Imports (`asyncio`, `pathlib.Path`, `logging`, `re`)
 2. Affichage de la bannière
-3. Création du dossier de journal et configuration de `logging`
-4. Définition de la classe `Scanner`
-5. Définition de la fonction `scan_port`
-6. Boucle principale interactive
+3. Dictionnaires de référence (`ports_services_complet` et `extensions_domaine_complet`)
+4. Création du dossier de journal et configuration de `logging`
+5. Définition de la classe `Scanner`
+6. Définition de la fonction `scan_port`
+7. Boucle principale interactive
 
 `scan_port` est définie en dehors de la classe parce qu'elle n'accède à aucune donnée d'instance : tout ce dont elle a besoin lui est passé en paramètres. Elle est donc réutilisable telle quelle dans un autre script.
 
@@ -99,18 +100,20 @@ Les trois sont traitées identiquement : le port est considéré comme non ouver
 
 Ordre des opérations à chaque tour :
 
-1. Saisie de la cible ; `exit` (insensible à la casse) termine le programme
-2. Saisie des quatre paramètres numériques
-3. Avertissements non bloquants : timeout élevé, connexions simultanées insuffisantes
-4. Création du sémaphore
-5. Chaîne de validation des ports
-6. Si tout est valide : création du `Scanner`, exécution via `asyncio.run`, affichage
-
-`asyncio.run` est le seul point d'entrée entre le code normal et le code asynchrone. Il ne peut pas être appelé depuis une fonction `async def`.
+1. Saisie de la cible ; `exit` (insensible à la casse) termine le programme.
+2. Validation de la cible via des expressions régulières (`re`) :
+   - Détection d'IP IPv4.
+   - Détection de nom de domaine. Si le nom est valide, recherche du TLD dans `extensions_domaine_complet` pour afficher sa description.
+   - Si la cible n'est ni une IP ni un nom de domaine valide, affichage d'une erreur et réinvitation de l'utilisateur.
+3. Saisie des quatre paramètres numériques.
+4. Avertissements non bloquants : timeout élevé, connexions simultanées insuffisantes.
+5. Création du sémaphore.
+6. Validation de la plage de ports.
+7. Si tout est valide : création du `Scanner`, exécution via `asyncio.run`, mise en correspondance des ports ouverts avec le dictionnaire `ports_services_complet` et affichage structuré.
 
 ### Validation
 
-Les trois vérifications forment une chaîne `if/elif/else`. Les avertissements sont des `if` indépendants, placés avant : les inclure dans la chaîne empêcherait le `else` de s'exécuter.
+Les trois vérifications de plage forment une chaîne `if/elif/else`. Les avertissements sont des `if` indépendants, placés avant : les inclure dans la chaîne empêcherait le `else` de s'exécuter.
 
 | Condition | Message |
 |---|---|
@@ -120,8 +123,7 @@ Les trois vérifications forment une chaîne `if/elif/else`. Les avertissements 
 
 ## Limites connues
 
-- La cible n'est pas validée : n'importe quelle chaîne est acceptée
-- L'attribut `results` de la classe n'est jamais utilisé
-- Le fichier de journal grossit indéfiniment
-- Aucune progression affichée pendant un scan long
-- Un port ouvert n'est pas associé à son service
+- Prise en charge uniquement des adresses IPv4 (pas d'IPv6)
+- L'attribut `results` de la classe n'est pas exploité
+- Le fichier de journal grossit indéfiniment (pas de rotation)
+- Aucune barre de progression pendant le scan

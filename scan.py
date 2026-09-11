@@ -1,6 +1,7 @@
 import asyncio
 from pathlib import Path
 import logging
+import re
 
 print(r"""
                 ╭───────────────────────────────────────────────╮
@@ -12,7 +13,133 @@ print(r"""
                 │   asynchronous tcp scanner  //  python 3      │
                 ╰───────────────────────────────────────────────╯""")
 
-log_dir=Path("scan")
+ports_services_complet = {
+    # --- Ports Bien Connus (0 - 1023) ---
+    20: "FTP (Données)",
+    21: "FTP (Contrôle)",
+    22: "SSH",
+    23: "Telnet",
+    25: "SMTP",
+    53: "DNS",
+    67: "DHCP (Serveur)",
+    68: "DHCP (Client)",
+    69: "TFTP",
+    80: "HTTP",
+    110: "POP3",
+    123: "NTP",
+    135: "MSRPC (RPC)",
+    137: "NetBIOS (Nom)",
+    138: "NetBIOS (Datagramme)",
+    139: "NetBIOS (Session)",
+    143: "IMAP",
+    161: "SNMP",
+    162: "SNMP (Trap)",
+    179: "BGP",
+    389: "LDAP",
+    443: "HTTPS",
+    445: "SMB / CIFS",
+    465: "SMTPS (Implicit TLS)",
+    514: "Syslog",
+    587: "SMTP (Submission/TLS)",
+    636: "LDAPS",
+    873: "Rsync",
+    993: "IMAPS",
+    995: "POP3S",
+    
+    # --- Ports Enregistrés (1024 - 49151) ---
+    1194: "OpenVPN",
+    1433: "Microsoft SQL Server",
+    1434: "Microsoft SQL Monitor",
+    1521: "Oracle Database",
+    2049: "NFS",
+    2082: "cPanel",
+    2083: "cPanel (Sécurisé)",
+    2375: "Docker REST API (Non sécurisé)",
+    2376: "Docker REST API (Sécurisé)",
+    3128: "Squid Proxy",
+    3306: "MySQL / MariaDB",
+    3389: "RDP (Bureau à distance)",
+    5432: "PostgreSQL",
+    5900: "VNC",
+    5985: "WinRM (HTTP)",
+    5986: "WinRM (HTTPS)",
+    6379: "Redis",
+    8000: "HTTP (Alternatif / Dev)",
+    8080: "HTTP (Proxy / Tomcat)",
+    8443: "HTTPS (Alternatif)",
+    9090: "WebSM / Prometheus",
+    9200: "Elasticsearch",
+    10000: "Webmin",
+    27017: "MongoDB"
+}
+
+extensions_domaine_complet = {
+    # --- Génériques et Historiques ---
+    ".com": "Commercial / Universel",
+    ".net": "Réseau / Généraliste",
+    ".org": "Organisation",
+    ".info": "Informations",
+    ".biz": "Business",
+    ".name": "Personnel / Individuel",
+    ".pro": "Professionnels",
+    ".mobi": "Sites Mobiles",
+
+    # --- Techniques et Startups ---
+    ".tech": "Technologie",
+    ".io": "Startups / Input-Output",
+    ".ai": "Intelligence Artificielle",
+    ".dev": "Développement (HTTPS)",
+    ".app": "Applications (HTTPS)",
+    ".code": "Programmation",
+    ".crypto": "Cryptomonnaie / Web3",
+    ".cloud": "Cloud Computing",
+    ".data": "Données",
+
+    # --- Business et Web Marketing ---
+    ".online": "Présence En Ligne",
+    ".store": "Boutique en ligne",
+    ".shop": "E-commerce",
+    ".site": "Site Web Généraliste",
+    ".xyz": "Généraliste / Génération XYZ",
+    ".agency": "Agences",
+    ".marketing": "Marketing",
+    ".company": "Entreprises",
+    ".digital": "Numérique",
+
+    # --- Médias et Communautés ---
+    ".blog": "Blogs",
+    ".media": "Médias / Actualités",
+    ".news": "Informations",
+    ".tv": "Télévision / Streaming",
+    ".me": "Marque Personnelle",
+    ".club": "Clubs / Communautés",
+    ".space": "Espace Communautaire",
+    ".studio": "Studios de création",
+
+    # --- Géographiques Principaux (ccTLDs) ---
+    ".fr": "France",
+    ".be": "Belgique",
+    ".ch": "Suisse",
+    ".ca": "Canada",
+    ".uk": "Royaume-Uni",
+    ".eu": "Union Européenne",
+    ".us": "États-Unis",
+    ".de": "Allemagne",
+    ".it": "Italie",
+    ".es": "Espagne",
+    ".nl": "Pays-Bas",
+    ".jp": "Japon",
+    ".cn": "Chine",
+
+    # --- Institutionnels ---
+    ".edu": "Éducation (USA)",
+    ".gov": "Gouvernement (USA)",
+    ".mil": "Militaire (USA)",
+    ".int": "Organisations Internationales"
+}
+
+
+log_dir = Path("scan")
 log_dir.mkdir(parents=True, exist_ok=True)
 
 logging.basicConfig(
@@ -49,13 +176,32 @@ async def scan_port(target, port, timeout_value, semaphore):
         except (asyncio.TimeoutError, ConnectionRefusedError, OSError):
             logging.debug(f"Port {port} closed or unreachable")
             return None
+        
 if __name__ == '__main__':
     while True:
         try:
-            target = input('\nTarget or exit: ')
-            if target.lower() == 'exit':
+            get = input('\nTarget or exit: ').strip()
+            if get.lower() == 'exit':
                 print("\nExiting")
                 break
+            if not get:
+                continue
+
+            # Validation de l'IP ou du domaine
+            ip_match = re.search(r"^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$", get)
+            domain_match = re.search(r"^(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}$", get)
+
+            if ip_match:
+                target = ip_match.group(0)
+            elif domain_match:
+                target = domain_match.group(0)
+                ext = "." + target.split(".")[-1].lower()
+                if ext in extensions_domaine_complet:
+                    print(f"Type de domaine : {extensions_domaine_complet[ext]}")
+            else:
+                print("Cible invalide (entrez une IP ou un nom de domaine valide).")
+                continue
+
             start_port = int(input("Start_port: "))
             end_port = int(input('End_port (limit 65535): '))
             timeout_value = int(input('Timeout: '))
@@ -79,7 +225,16 @@ if __name__ == '__main__':
                 sc = Scanner(target, range(start_port, end_port + 1), timeout_value, semaphore)
                 info = asyncio.run(sc.scan())
                 logging.info(f"Scan finished, {len(info)} open port(s) found: {info}")
-                print(f'\nPort Found for {target}: {info}')
+                new_info = []
+                for port in info:
+                    if port in ports_services_complet:
+                        new_info.append((port, ports_services_complet[port]))
+                    else:
+                        new_info.append((port, "Unknown service"))
+                maj_info = ""
+                for p, service in new_info:
+                    maj_info += f"{p} ({service})\n"
+                print(f'\nPort Found for {target}:\n{maj_info}')
         except ValueError:
             print('\nEnter an integer')
         except (EOFError, KeyboardInterrupt):
